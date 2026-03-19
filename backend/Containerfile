@@ -1,0 +1,10 @@
+FROM registry.access.redhat.com/ubi10/go-toolset:10.0 AS builder
+WORKDIR /app
+COPY . .
+RUN go build -o guestbook-api .
+
+FROM registry.access.redhat.com/ubi10-minimal:10.0
+WORKDIR /app
+COPY --from=builder /app/guestbook-api .
+EXPOSE 8080
+CMD ["./guestbook-api"]
