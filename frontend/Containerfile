@@ -1,4 +1,5 @@
 FROM registry.access.redhat.com/ubi10/nginx-126:10.0
+COPY nginx.conf /etc/nginx/nginx.conf
 COPY . /opt/app-root/src
 EXPOSE 8080
 CMD ["nginx", "-g", "daemon off;"]
