@@ -1,4 +1,4 @@
-name: Build and push container images
+name: Build, push and deploy
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     permissions:
@@ -16,6 +16,13 @@ jobs:
     steps:
       - name: Checkout kod
         uses: actions/checkout@v4
+
+      - name: Checkout config-repo
+        uses: actions/checkout@v4
+        with:
+          repository: isak0016/gb-config
+          path: ./gb-config
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Logga in på GHCR
         uses: docker/login-action@v3
@@ -39,3 +46,24 @@ jobs:
           file: ./frontend/Containerfile
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/guestbook-frontend:${{ github.sha }}
+
+      - name: Installera oc
+        uses: redhat-actions/openshift-tools-installer@v1
+        with:
+          oc: latest
+
+      - name: Logga in på OpenShift
+        run: |
+          oc login --token=${{ secrets.OC_TOKEN }} \
+                   --server=${{ secrets.OC_SERVER }}
+
+      - name: Uppdatera image-taggar i manifestfiler
+        run: |
+          sed -i "s|ghcr.io/isak0016/guestbook-backend:.*|ghcr.io/isak0016/guestbook-backend:${{ github.sha }}|g" k8s/backend.yaml
+          sed -i "s|ghcr.io/isak0016/guestbook-frontend:.*|ghcr.io/isak0016/guestbook-frontend:${{ github.sha }}|g" k8s/frontend.yaml
+        working-directory: ./gb-config
+
+      - name: Driftsätt till OpenShift
+        run: |
+          oc apply -f k8s/
+        working-directory: ./gb-config
